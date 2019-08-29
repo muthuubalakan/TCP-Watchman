@@ -9,7 +9,6 @@ assert sys.platform == 'Linux', (
 
 MAYDAY = 1
 
-# sniffing only TCP packets.
 SOCKET_FAMILY = socket.AF_INET
 TYPE = socket.SOCK_RAW
 
@@ -21,23 +20,33 @@ PROTOCOL = {
 
 
 class Connection:
+    """
+    Asynchronous socket raw streaming socket connection.
+    : param protocol: tells the socket type of the protocol & which protocol connection packets should be sniffed.
+    : type str : optional
 
-    def __init__(self, protocol=None):
+    use:
+       `async with Connection(protocol='UDP') as sock:
+                sock.recv(2384)`
+    Return as socket connection
+    """
+    def __init__(self, protocol=None, sock=None):
         self.protocol = PROTOCOL.get(protocol.upper(), None)
         if not self.protocol:
-            self.protocol = PROTOCOL.get('UDP')   
+            self.protocol = PROTOCOL.get('TCP')   
         self.classname = type(self).__name__
-    
+        self.sock = sock if sock else socket.socket(SOCKET_FAMILY, TYPE, self.protocol)
+
     def __repr__(self):
         return f'{self.classname}(protocol={self.protocol})'
 
-    def __aenter__(self):
+    async def __aenter__(self):
         try:
-            self.sock = socket.socket(SOCKET_FAMILY, TYPE, self.protocol)
-            return self.sock
+           return self.sock
         except socket.error as err:
             sys.stderr.write('Unable to make socket connection.{}'.format(err))
             sys.exit(MAYDAY)
 
-    def __aexit__(self, *args):
-        self.sock.close()
+    async def __aexit__(self, *args):
+        if self.sock:
+            self.sock.close()
